@@ -1,251 +1,278 @@
+# streamlit_app.py
+
 import streamlit as st
 import pandas as pd
 import joblib
+import os
 
-# --- Load model ---
-st.title("🎓 Student Dropout Prediction System")
-model_path = "models/dropout_model.pkl"
+# --- Paths ---
+MODEL_PATH = os.path.join("models", "dropout_model.pkl")
 
-try:
-    model = joblib.load(model_path)
-    st.success("✅ Model loaded successfully.")
-except FileNotFoundError:
-    st.error(f"❌ Model file not found at {model_path}")
+# --- Load Model ---
+@st.cache_resource
+def load_model():
+    return joblib.load(MODEL_PATH)
 
-# --- Sidebar instructions ---
-st.sidebar.header("How to input data")
-st.sidebar.write("""
-- Select from dropdowns/tick boxes for categorical fields.
-- Use sliders or number inputs for numeric fields.
-- Hover over inputs to see tips about what the value means.
-- You can also upload a CSV file for batch predictions.
+model = load_model()
+
+# --- Sidebar ---
+st.sidebar.title("Student Dropout Prediction System")
+st.sidebar.markdown("""
+**Welcome!** This app predicts the risk of student dropout.
+
+**Feature Guide:**
+- **Marital Status**: Could indicate family responsibilities affecting study time.
+- **Admission Grade**: Prior academic performance.
+- **Curricular Units**: Completed credits can show progress.
+- **Economic Indicators (GDP, Inflation)**: Provide context for financial stress risks.
+- **Scholarship Holder, Tuition Fees up to Date**: Financial stability.
 """)
 
-st.header("🧍 Manual Single Student Prediction")
-
-# --- CATEGORICAL INPUTS ---
-marital_status = st.selectbox(
-    "Marital Status",
-    options=["Single", "Married", "Divorced", "Other"],
-    help="Select the marital status of the student."
+# --- Navigation ---
+page = st.sidebar.radio(
+    "Navigate",
+    ["Home", "CSV Upload", "Manual Prediction", "About"]
 )
 
-application_mode = st.selectbox(
-    "Application Mode",
-    options=["Standard", "Extraordinary", "Other"],
-    help="Select how the student applied."
-)
+# --- Home Page ---
+if page == "Home":
+    st.title("🎓 Student Dropout Prediction System")
+    st.markdown("""
+    Welcome! This system predicts student dropout risk. You can:
+    - Upload a CSV file for batch predictions
+    - Enter a single student’s information manually
+    Use the sidebar for guidance on what each input means.
+    """)
 
-course = st.selectbox(
-    "Course",
-    options=["Engineering", "Business", "Arts", "Science", "Other"],
-    help="Select the course the student is enrolled in."
-)
+# --- CSV Upload Page ---
+elif page == "CSV Upload":
+    st.title("📥 Batch Prediction (CSV Upload)")
+    st.markdown("Upload a CSV file with the same structure (exclude Target column).")
 
-daytime_attendance = st.radio(
-    "Daytime/Evening Attendance",
-    options=["Daytime", "Evening"],
-    help="Select whether the student attends daytime or evening classes."
-)
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+    if uploaded_file:
+        try:
+            df = pd.read_csv(uploaded_file, sep=';')
+            st.write("Preview of uploaded data:")
+            st.dataframe(df.head())
 
-prev_qualification = st.selectbox(
-    "Previous Qualification",
-    options=["None", "Secondary School", "Bachelor's", "Master's", "PhD"],
-    help="Select the highest previous qualification of the student."
-)
+            if st.button("Predict Dropout Risk"):
+                predictions = model.predict(df)
+                df["Dropout Risk"] = predictions
+                st.success("Predictions complete!")
+                st.dataframe(df)
+        except Exception as e:
+            st.error(f"Error reading CSV: {e}")
 
-prev_qualification_grade = st.selectbox(
-    "Previous Qualification Grade",
-    options=["Poor", "Average", "Good", "Very Good", "Excellent"],
-    help="Select the grade achieved in the previous qualification."
-)
+# --- Manual Single Student Prediction ---
+elif page == "Manual Prediction":
+    st.title("🧍 Manual Single Student Prediction")
+    st.markdown("Enter student information manually:")
 
-nationality = st.selectbox(
-    "Nationality",
-    options=["Domestic", "International"],
-    help="Select whether the student is from the home country or abroad."
-)
+    with st.form("manual_prediction_form"):
+        # Categorical Inputs
+        marital_status = st.selectbox(
+            "Marital Status", ["Single", "Married", "Other"],
+            help="Social/family responsibilities affecting study time."
+        )
 
-mother_qualification = st.selectbox(
-    "Mother's Qualification",
-    options=["None", "Secondary School", "Bachelor's", "Master's", "PhD"],
-    help="Select the highest qualification of the mother."
-)
+        application_mode = st.selectbox(
+            "Application Mode", ["Regular", "Extraordinary"],
+            help="Admission mode can affect student preparedness."
+        )
 
-father_qualification = st.selectbox(
-    "Father's Qualification",
-    options=["None", "Secondary School", "Bachelor's", "Master's", "PhD"],
-    help="Select the highest qualification of the father."
-)
+        course = st.selectbox(
+            "Course", ["Engineering", "Science", "Business", "Arts"],
+            help="Student's course of study."
+        )
 
-mother_occupation = st.selectbox(
-    "Mother's Occupation",
-    options=["Unemployed", "Blue-collar", "White-collar", "Professional"],
-    help="Select the mother's occupation."
-)
+        nationality = st.selectbox(
+            "Nationality", ["Domestic", "International"],
+            help="Domestic or international students may have different dropout risks."
+        )
 
-father_occupation = st.selectbox(
-    "Father's Occupation",
-    options=["Unemployed", "Blue-collar", "White-collar", "Professional"],
-    help="Select the father's occupation."
-)
+        previous_qualification = st.selectbox(
+            "Previous Qualification", ["High School", "Associate Degree", "Other"],
+            help="Prior academic qualifications."
+        )
 
-gender = st.radio(
-    "Gender",
-    options=["Male", "Female", "Other"],
-    help="Select the gender of the student."
-)
+        mother_qualification = st.selectbox(
+            "Mother's Qualification", ["None", "High School", "College", "Other"],
+            help="Parental education can influence support."
+        )
 
-displaced = st.radio(
-    "Displaced Student",
-    options=["Yes", "No"],
-    help="Is the student displaced from another location?"
-)
+        father_qualification = st.selectbox(
+            "Father's Qualification", ["None", "High School", "College", "Other"],
+            help="Parental education can influence support."
+        )
 
-debtor = st.radio(
-    "Debtor",
-    options=["Yes", "No"],
-    help="Does the student have outstanding tuition fees?"
-)
+        mother_occupation = st.selectbox(
+            "Mother's Occupation", ["Unemployed", "Employed", "Other"],
+            help="Parental occupation may affect financial stability."
+        )
 
-scholarship_holder = st.radio(
-    "Scholarship Holder",
-    options=["Yes", "No"],
-    help="Does the student hold a scholarship?"
-)
+        father_occupation = st.selectbox(
+            "Father's Occupation", ["Unemployed", "Employed", "Other"],
+            help="Parental occupation may affect financial stability."
+        )
 
-educational_special_needs = st.radio(
-    "Educational Special Needs",
-    options=["Yes", "No"],
-    help="Does the student have special educational needs?"
-)
+        gender = st.selectbox(
+            "Gender", ["Male", "Female"],
+            help="Student gender."
+        )
 
-international = st.radio(
-    "International",
-    options=["Yes", "No"],
-    help="Is the student an international student?"
-)
+        displaced = st.selectbox(
+            "Displaced", ["Yes", "No"],
+            help="Whether the student has been displaced."
+        )
 
-# --- NUMERIC INPUTS ---
-age_at_enrollment = st.number_input(
-    "Age at Enrollment", min_value=15, max_value=60, value=18,
-    help="Enter the age of the student at enrollment."
-)
+        debtor = st.selectbox(
+            "Debtor", ["Yes", "No"],
+            help="Student has outstanding debts."
+        )
 
-admission_grade = st.number_input(
-    "Admission Grade", min_value=0.0, max_value=20.0, value=10.0,
-    help="Enter the student's admission grade."
-)
+        tuition_fees_up_to_date = st.selectbox(
+            "Tuition Fees Up to Date", ["Yes", "No"],
+            help="Financial obligations can affect dropout risk."
+        )
 
-curr_units_1st_sem_credited = st.number_input(
-    "Curricular Units 1st Sem (Credited)", min_value=0, max_value=60, value=5,
-    help="Number of curricular units credited in 1st semester."
-)
-curr_units_1st_sem_enrolled = st.number_input(
-    "Curricular Units 1st Sem (Enrolled)", min_value=0, max_value=60, value=5,
-    help="Number of curricular units enrolled in 1st semester."
-)
-curr_units_1st_sem_evaluations = st.number_input(
-    "Curricular Units 1st Sem (Evaluations)", min_value=0, max_value=60, value=5,
-    help="Number of evaluations in 1st semester."
-)
-curr_units_1st_sem_approved = st.number_input(
-    "Curricular Units 1st Sem (Approved)", min_value=0, max_value=60, value=5,
-    help="Number of units approved in 1st semester."
-)
-curr_units_1st_sem_grade = st.number_input(
-    "Curricular Units 1st Sem (Grade)", min_value=0.0, max_value=20.0, value=10.0,
-    help="Average grade of 1st semester units."
-)
-curr_units_1st_sem_without_eval = st.number_input(
-    "Curricular Units 1st Sem (Without Evaluations)", min_value=0, max_value=60, value=0,
-    help="Number of units without evaluations in 1st semester."
-)
+        scholarship_holder = st.selectbox(
+            "Scholarship Holder", ["Yes", "No"],
+            help="Scholarship support can reduce dropout risk."
+        )
 
-curr_units_2nd_sem_credited = st.number_input(
-    "Curricular Units 2nd Sem (Credited)", min_value=0, max_value=60, value=5,
-    help="Number of curricular units credited in 2nd semester."
-)
-curr_units_2nd_sem_enrolled = st.number_input(
-    "Curricular Units 2nd Sem (Enrolled)", min_value=0, max_value=60, value=5,
-    help="Number of curricular units enrolled in 2nd semester."
-)
-curr_units_2nd_sem_evaluations = st.number_input(
-    "Curricular Units 2nd Sem (Evaluations)", min_value=0, max_value=60, value=5,
-    help="Number of evaluations in 2nd semester."
-)
-curr_units_2nd_sem_approved = st.number_input(
-    "Curricular Units 2nd Sem (Approved)", min_value=0, max_value=60, value=5,
-    help="Number of units approved in 2nd semester."
-)
-curr_units_2nd_sem_grade = st.number_input(
-    "Curricular Units 2nd Sem (Grade)", min_value=0.0, max_value=20.0, value=10.0,
-    help="Average grade of 2nd semester units."
-)
-curr_units_2nd_sem_without_eval = st.number_input(
-    "Curricular Units 2nd Sem (Without Evaluations)", min_value=0, max_value=60, value=0,
-    help="Number of units without evaluations in 2nd semester."
-)
+        international = st.selectbox(
+            "International", ["Yes", "No"],
+            help="International students may have different support networks."
+        )
 
-# Economic indicators
-unemployment_rate = st.number_input(
-    "Unemployment Rate (%)", min_value=0.0, max_value=100.0, value=5.0,
-    help="Current unemployment rate in the country."
-)
-inflation_rate = st.number_input(
-    "Inflation Rate (%)", min_value=0.0, max_value=50.0, value=2.0,
-    help="Current inflation rate in the country."
-)
-gdp = st.number_input(
-    "GDP (USD billions)", min_value=0.0, max_value=200000.0, value=30000.0, step=100.0,
-    help="GDP of the country in USD billions."
-)
+        educational_special_needs = st.selectbox(
+            "Educational Special Needs", ["Yes", "No"],
+            help="Special needs may require additional support."
+        )
 
-# --- Prediction Button ---
-if st.button("Predict Dropout Risk"):
-    # Here you can construct a DataFrame for prediction
-    input_data = pd.DataFrame({
-        "Marital status": [marital_status],
-        "Application mode": [application_mode],
-        "Application order": [0],  # Example, can add proper input
-        "Course": [course],
-        "Daytime/evening attendance": [daytime_attendance],
-        "Previous qualification": [prev_qualification],
-        "Previous qualification (grade)": [prev_qualification_grade],
-        "Nationality": [nationality],
-        "Mother's qualification": [mother_qualification],
-        "Father's qualification": [father_qualification],
-        "Mother's occupation": [mother_occupation],
-        "Father's occupation": [father_occupation],
-        "Admission grade": [admission_grade],
-        "Displaced": [displaced],
-        "Educational special needs": [educational_special_needs],
-        "Debtor": [debtor],
-        "Tuition fees up to date": [0],  # Example
-        "Gender": [gender],
-        "Scholarship holder": [scholarship_holder],
-        "Age at enrollment": [age_at_enrollment],
-        "International": [international],
-        "Curricular units 1st sem (credited)": [curr_units_1st_sem_credited],
-        "Curricular units 1st sem (enrolled)": [curr_units_1st_sem_enrolled],
-        "Curricular units 1st sem (evaluations)": [curr_units_1st_sem_evaluations],
-        "Curricular units 1st sem (approved)": [curr_units_1st_sem_approved],
-        "Curricular units 1st sem (grade)": [curr_units_1st_sem_grade],
-        "Curricular units 1st sem (without evaluations)": [curr_units_1st_sem_without_eval],
-        "Curricular units 2nd sem (credited)": [curr_units_2nd_sem_credited],
-        "Curricular units 2nd sem (enrolled)": [curr_units_2nd_sem_enrolled],
-        "Curricular units 2nd sem (evaluations)": [curr_units_2nd_sem_evaluations],
-        "Curricular units 2nd sem (approved)": [curr_units_2nd_sem_approved],
-        "Curricular units 2nd sem (grade)": [curr_units_2nd_sem_grade],
-        "Curricular units 2nd sem (without evaluations)": [curr_units_2nd_sem_without_eval],
-        "Unemployment rate": [unemployment_rate],
-        "Inflation rate": [inflation_rate],
-        "GDP": [gdp],
-    })
-    st.write("✅ Input data prepared for prediction:")
-    st.dataframe(input_data)
+        # Numeric Inputs
+        age_at_enrollment = st.number_input(
+            "Age at Enrollment", min_value=15, max_value=50, value=18,
+            help="Student age at enrollment."
+        )
 
-    # Prediction example (replace with actual model call)
-    # prediction = model.predict(input_data)
-    # st.success(f"Predicted Dropout Risk: {prediction[0]}")
-    st.info("Prediction logic goes here…")
+        admission_grade = st.slider(
+            "Admission Grade", min_value=0.0, max_value=20.0, value=10.0, step=0.1,
+            help="Admission grade shows prior academic performance."
+        )
+
+        curricular_units_1st_sem_credited = st.number_input(
+            "Curricular Units 1st Sem (Credited)", min_value=0.0, value=0.0,
+            help="Credits successfully completed in first semester."
+        )
+
+        curricular_units_1st_sem_enrolled = st.number_input(
+            "Curricular Units 1st Sem (Enrolled)", min_value=0.0, value=0.0,
+            help="Credits the student is enrolled for in first semester."
+        )
+
+        curricular_units_1st_sem_evaluations = st.number_input(
+            "Curricular Units 1st Sem (Evaluations)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_1st_sem_approved = st.number_input(
+            "Curricular Units 1st Sem (Approved)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_1st_sem_grade = st.number_input(
+            "Curricular Units 1st Sem (Grade)", min_value=0.0, max_value=20.0, value=0.0
+        )
+
+        curricular_units_1st_sem_without_evaluations = st.number_input(
+            "Curricular Units 1st Sem (Without Evaluations)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_2nd_sem_credited = st.number_input(
+            "Curricular Units 2nd Sem (Credited)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_2nd_sem_enrolled = st.number_input(
+            "Curricular Units 2nd Sem (Enrolled)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_2nd_sem_evaluations = st.number_input(
+            "Curricular Units 2nd Sem (Evaluations)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_2nd_sem_approved = st.number_input(
+            "Curricular Units 2nd Sem (Approved)", min_value=0.0, value=0.0
+        )
+
+        curricular_units_2nd_sem_grade = st.number_input(
+            "Curricular Units 2nd Sem (Grade)", min_value=0.0, max_value=20.0, value=0.0
+        )
+
+        curricular_units_2nd_sem_without_evaluations = st.number_input(
+            "Curricular Units 2nd Sem (Without Evaluations)", min_value=0.0, value=0.0
+        )
+
+        unemployment_rate = st.number_input(
+            "Unemployment Rate", min_value=0.0, max_value=100.0, value=0.0,
+            help="Local unemployment rate in percentage."
+        )
+
+        inflation_rate = st.number_input(
+            "Inflation Rate", min_value=0.0, max_value=100.0, value=0.0,
+            help="Local inflation rate in percentage."
+        )
+
+        gdp = st.number_input(
+            "GDP", min_value=0.0, value=0.0,
+            help="Local Gross Domestic Product."
+        )
+
+        submitted = st.form_submit_button("Predict Dropout Risk")
+        if submitted:
+            input_data = pd.DataFrame([{
+                "Marital status": marital_status,
+                "Application mode": application_mode,
+                "Course": course,
+                "Nationality": nationality,
+                "Previous qualification": previous_qualification,
+                "Mother's qualification": mother_qualification,
+                "Father's qualification": father_qualification,
+                "Mother's occupation": mother_occupation,
+                "Father's occupation": father_occupation,
+                "Gender": gender,
+                "Displaced": displaced,
+                "Debtor": debtor,
+                "Tuition fees up to date": tuition_fees_up_to_date,
+                "Scholarship holder": scholarship_holder,
+                "International": international,
+                "Educational special needs": educational_special_needs,
+                "Age at enrollment": age_at_enrollment,
+                "Admission grade": admission_grade,
+                "Curricular units 1st sem (credited)": curricular_units_1st_sem_credited,
+                "Curricular units 1st sem (enrolled)": curricular_units_1st_sem_enrolled,
+                "Curricular units 1st sem (evaluations)": curricular_units_1st_sem_evaluations,
+                "Curricular units 1st sem (approved)": curricular_units_1st_sem_approved,
+                "Curricular units 1st sem (grade)": curricular_units_1st_sem_grade,
+                "Curricular units 1st sem (without evaluations)": curricular_units_1st_sem_without_evaluations,
+                "Curricular units 2nd sem (credited)": curricular_units_2nd_sem_credited,
+                "Curricular units 2nd sem (enrolled)": curricular_units_2nd_sem_enrolled,
+                "Curricular units 2nd sem (evaluations)": curricular_units_2nd_sem_evaluations,
+                "Curricular units 2nd sem (approved)": curricular_units_2nd_sem_approved,
+                "Curricular units 2nd sem (grade)": curricular_units_2nd_sem_grade,
+                "Curricular units 2nd sem (without evaluations)": curricular_units_2nd_sem_without_evaluations,
+                "Unemployment rate": unemployment_rate,
+                "Inflation rate": inflation_rate,
+                "GDP": gdp
+            }])
+            prediction = model.predict(input_data)[0]
+            st.success(f"Predicted Dropout Risk: {prediction}")
+
+# --- About Page ---
+elif page == "About":
+    st.title("ℹ️ About the Model")
+    st.markdown("""
+    **Model**: Random Forest Classifier (example)  
+    **Purpose**: Predict student dropout risk  
+    **Usage**: Use CSV for batch prediction or manual input for single students.  
+    **Real-world impact**: Helps universities and schools identify at-risk students and offer support early.
+    """)
