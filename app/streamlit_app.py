@@ -1,122 +1,89 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import joblib
 import os
-import matplotlib.pyplot as plt
 
-# ----------------------------
-# CONFIG
-# ----------------------------
-st.set_page_config(
-    page_title="Student Dropout Prediction System",
-    layout="wide"
-)
+# Page config
+st.set_page_config(page_title="Student Dropout Prediction System", layout="wide")
 
-# ----------------------------
-# LOAD MODEL
-# ----------------------------
-MODEL_PATH = os.path.join("models", "dropout_model.pkl")
-if os.path.exists(MODEL_PATH):
-    model = joblib.load(MODEL_PATH)
-    st.success("✅ Model loaded successfully.")
-else:
-    st.error(f"❌ Model not found at {MODEL_PATH}. Run Phase 6 first.")
+st.title("🎓 Student Dropout Prediction System")
+st.markdown("Upload student data or enter values manually to predict dropout risk.")
 
-# ----------------------------
-# TAB INTERFACE
-# ----------------------------
-tab1, tab2, tab3 = st.tabs(["Batch Prediction", "Manual Single Prediction", "Feature Importance / Trends"])
+# Load model
+model_path = os.path.join("models", "dropout_model.pkl")
 
-# ----------------------------
-# BATCH PREDICTION
-# ----------------------------
-with tab1:
-    st.subheader("📥 Upload CSV for Batch Prediction")
-    uploaded_file = st.file_uploader("Upload a CSV with student data (without Target column)", type="csv")
-    
-    if uploaded_file is not None:
-        try:
-            df_batch = pd.read_csv(uploaded_file, sep=';')
-            st.write("Preview of uploaded data:")
-            st.dataframe(df_batch.head())
-            
-            # Make predictions
-            predictions = model.predict_proba(df_batch)[:,1]
-            df_batch["Dropout Probability"] = predictions
-            df_batch["Risk Level"] = pd.cut(predictions, bins=[-1,0.33,0.66,1], labels=["Low","Medium","High"])
-            
-            st.success("Predictions generated!")
-            st.dataframe(df_batch.head())
-            
-            # Download CSV
-            csv_file = df_batch.to_csv(index=False, sep=';')
-            st.download_button("Download Predictions CSV", csv_file, file_name="batch_predictions.csv", mime="text/csv")
-            
-        except Exception as e:
-            st.error(f"Error processing CSV: {e}")
+if not os.path.exists(model_path):
+    st.error("❌ Model file not found. Please make sure 'models/dropout_model.pkl' exists.")
+    st.stop()
 
-# ----------------------------
-# MANUAL SINGLE STUDENT PREDICTION
-# ----------------------------
-with tab2:
-    st.subheader("🧍 Manual Single Student Prediction")
-    
-    # Define input columns (example based on your CSV)
-    input_data = {}
-    columns = [
-        'Marital status', 'Application mode', 'Application order', 'Course',
-        'Daytime/evening attendance', 'Previous qualification', 'Previous qualification (grade)',
-        'Nacionality', "Mother's qualification", "Father's qualification", "Mother's occupation",
-        "Father's occupation", 'Admission grade', 'Displaced', 'Educational special needs', 'Debtor',
-        'Tuition fees up to date', 'Gender', 'Scholarship holder', 'Age at enrollment',
-        'International', 'Curricular units 1st sem (credited)', 'Curricular units 1st sem (enrolled)',
-        'Curricular units 1st sem (evaluations)', 'Curricular units 1st sem (approved)',
-        'Curricular units 1st sem (grade)', 'Curricular units 1st sem (without evaluations)',
-        'Curricular units 2nd sem (credited)', 'Curricular units 2nd sem (enrolled)',
-        'Curricular units 2nd sem (evaluations)', 'Curricular units 2nd sem (approved)',
-        'Curricular units 2nd sem (grade)', 'Curricular units 2nd sem (without evaluations)',
-        'Unemployment rate', 'Inflation rate', 'GDP'
-    ]
-    
-    for col in columns:
-        input_data[col] = st.number_input(label=col, value=0.0)
-    
-    if st.button("Predict Dropout Risk"):
-        input_df = pd.DataFrame([input_data])
-        probability = model.predict_proba(input_df)[:,1][0]
-        if probability < 0.33:
-            risk = "Low"
-            color = "green"
-        elif probability < 0.66:
-            risk = "Medium"
-            color = "orange"
-        else:
-            risk = "High"
-            color = "red"
-        
-        st.markdown(f"**Dropout Probability:** {probability:.2f}")
-        st.markdown(f"<span style='color:{color}; font-weight:bold;'>Risk Level: {risk}</span>", unsafe_allow_html=True)
+model = joblib.load(model_path)
+st.success("✅ Model loaded successfully.")
 
-# ----------------------------
-# FEATURE IMPORTANCE / TRENDS
-# ----------------------------
-with tab3:
-    st.subheader("📊 Feature Importance / Trends")
-    
-    try:
-        importances = model.feature_importances_
-        feat_names = columns
-        feat_df = pd.DataFrame({'Feature': feat_names, 'Importance': importances}).sort_values(by='Importance', ascending=False)
-        
-        st.write("Top Features contributing to Dropout:")
-        st.bar_chart(feat_df.set_index('Feature')['Importance'])
-        
-        # Optional: Risk distribution
-        if 'df_batch' in locals():
-            st.write("Dropout Risk Distribution (Batch Prediction):")
-            st.bar_chart(df_batch['Risk Level'].value_counts())
-        
-    except Exception as e:
-        st.warning(f"Feature importance not available: {e}")
+# Feature columns (must match training data exactly)
+FEATURE_COLUMNS = [
+    'Marital status', 'Application mode', 'Application order', 'Course',
+    'Daytime/evening attendance', 'Previous qualification',
+    'Previous qualification (grade)', 'Nacionality', "Mother's qualification",
+    "Father's qualification", "Mother's occupation", "Father's occupation",
+    'Admission grade', 'Displaced', 'Educational special needs', 'Debtor',
+    'Tuition fees up to date', 'Gender', 'Scholarship holder',
+    'Age at enrollment', 'International',
+    'Curricular units 1st sem (credited)', 'Curricular units 1st sem (enrolled)',
+    'Curricular units 1st sem (evaluations)', 'Curricular units 1st sem (approved)',
+    'Curricular units 1st sem (grade)', 'Curricular units 1st sem (without evaluations)',
+    'Curricular units 2nd sem (credited)', 'Curricular units 2nd sem (enrolled)',
+    'Curricular units 2nd sem (evaluations)', 'Curricular units 2nd sem (approved)',
+    'Curricular units 2nd sem (grade)', 'Curricular units 2nd sem (without evaluations)',
+    'Unemployment rate', 'Inflation rate', 'GDP'
+]
 
+# ---------------------------
+# Batch Prediction Section
+# ---------------------------
+st.header("📥 Upload CSV for Batch Prediction")
+uploaded_file = st.file_uploader("Upload a CSV file with the same structure (without Target column)", type=["csv"])
+
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+
+    if not all(col in df.columns for col in FEATURE_COLUMNS):
+        st.error("❌ Uploaded file does not contain the required columns.")
+    else:
+        predictions = model.predict(df)
+        probabilities = model.predict_proba(df)[:, 1]
+
+        df["Dropout Prediction"] = predictions
+        df["Dropout Probability"] = probabilities
+
+        st.success("✅ Predictions completed.")
+        st.dataframe(df)
+
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("⬇️ Download Predictions", csv, "dropout_predictions.csv", "text/csv")
+
+# ---------------------------
+# Manual Prediction Section
+# ---------------------------
+st.header("🧍 Manual Single Student Prediction")
+
+with st.form("manual_prediction_form"):
+    inputs = {}
+    cols = st.columns(3)
+
+    for i, feature in enumerate(FEATURE_COLUMNS):
+        with cols[i % 3]:
+            inputs[feature] = st.number_input(feature, value=0.0)
+
+    submitted = st.form_submit_button("🔍 Predict Dropout Risk")
+
+if submitted:
+    input_df = pd.DataFrame([inputs])
+    prediction = model.predict(input_df)[0]
+    probability = model.predict_proba(input_df)[0][1]
+
+    st.subheader("📊 Prediction Result")
+
+    if prediction == 1:
+        st.error(f"⚠️ High Risk of Dropout (Probability: {probability:.2%})")
+    else:
+        st.success(f"✅ Low Risk of Dropout (Probability: {probability:.2%})")
