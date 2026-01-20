@@ -1,220 +1,113 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import os
 
-# ==============================
-# App Configuration
-# ==============================
-st.set_page_config(
-    page_title="🎓 Student Dropout Prediction System",
-    page_icon="🎓",
-    layout="wide"
-)
+st.set_page_config(page_title="Student Dropout Prediction System", layout="wide")
 
 st.title("🎓 Student Dropout Prediction System")
-st.markdown("""
-Predict whether a student is at risk of dropping out using academic, demographic, 
-and socio-economic information.
-""")
 
-# ==============================
-# Load Model
-# ==============================
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "dropout_model.pkl")
-
-@st.cache_resource
-def load_model():
-    return joblib.load(MODEL_PATH)
-
+# ------------------------------
+# Load model
+# ------------------------------
+model_path = "app/models/dropout_model.pkl"
 try:
-    model = load_model()
+    model = joblib.load(model_path)
     st.success("✅ Model loaded successfully.")
 except Exception as e:
     st.error(f"❌ Failed to load model: {e}")
-    st.stop()
 
-# ==============================
-# Feature List (MUST match training data order)
-# ==============================
-FEATURES = [
-    "Marital status",
-    "Application mode",
-    "Application order",
-    "Course",
-    "Daytime/evening attendance",
-    "Previous qualification",
-    "Previous qualification (grade)",
-    "Nacionality",
-    "Mother's qualification",
-    "Father's qualification",
-    "Mother's occupation",
-    "Father's occupation",
-    "Admission grade",
-    "Displaced",
-    "Educational special needs",
-    "Debtor",
-    "Tuition fees up to date",
-    "Gender",
-    "Scholarship holder",
-    "Age at enrollment",
-    "International",
-    "Curricular units 1st sem (credited)",
-    "Curricular units 1st sem (enrolled)",
-    "Curricular units 1st sem (evaluations)",
-    "Curricular units 1st sem (approved)",
-    "Curricular units 1st sem (grade)",
-    "Curricular units 1st sem (without evaluations)",
-    "Curricular units 2nd sem (credited)",
-    "Curricular units 2nd sem (enrolled)",
-    "Curricular units 2nd sem (evaluations)",
-    "Curricular units 2nd sem (approved)",
-    "Curricular units 2nd sem (grade)",
-    "Curricular units 2nd sem (without evaluations)",
-    "Unemployment rate",
-    "Inflation rate",
-    "GDP"
-]
+# ------------------------------
+# Instructions
+# ------------------------------
+st.markdown("""
+This app predicts student dropout risk.
 
-# ==============================
-# Sidebar Navigation
-# ==============================
-st.sidebar.title("📌 Navigation")
-page = st.sidebar.radio("Go to", ["🏠 Home", "📥 Batch Prediction", "🧍 Single Student Prediction", "ℹ️ About the System"])
+**Manual Single Student Prediction:** Enter values for a student in each field.  
+Hover over each field label to see what the values mean.  
 
-# ==============================
-# Home Page
-# ==============================
-if page == "🏠 Home":
-    st.header("Welcome 👋")
-    st.markdown("""
-    This system predicts **student dropout risk** using machine learning.
+**CSV Batch Prediction:** Upload a CSV file with the same columns (excluding the Target column).
+""")
 
-    ### 🔍 What you can do:
-    - Upload a CSV file for **batch predictions**
-    - Enter student data manually for **single predictions**
-    - Understand how the system works and how to use it effectively
+# ------------------------------
+# Sample tooltips dictionary
+# ------------------------------
+tooltips = {
+    "Marital status": "0: Single, 1: Married, 2: Other",
+    "Application mode": "0: Online, 1: In-person, 2: Other",
+    "Application order": "Numeric order of application",
+    "Course": "Course code or name",
+    "Daytime/evening attendance": "0: Daytime, 1: Evening",
+    "Previous qualification": "0: None, 1: High School, 2: Bachelor, etc.",
+    "Previous qualification (grade)": "Numeric grade",
+    "Nationality": "0: Home, 1: International",
+    "Mother's qualification": "0: None, 1: Primary, 2: Secondary, 3: Higher",
+    "Father's qualification": "0: None, 1: Primary, 2: Secondary, 3: Higher",
+    "Mother's occupation": "Categorical code for occupation",
+    "Father's occupation": "Categorical code for occupation",
+    "Admission grade": "Numeric grade",
+    "Displaced": "0: No, 1: Yes",
+    "Educational special needs": "0: No, 1: Yes",
+    "Debtor": "0: No, 1: Yes",
+    "Tuition fees up to date": "0: No, 1: Yes",
+    "Gender": "0: Female, 1: Male",
+    "Scholarship holder": "0: No, 1: Yes",
+    "Age at enrollment": "Numeric age",
+    "International": "0: No, 1: Yes",
+    "Curricular units 1st sem (credited)": "Numeric value",
+    "Curricular units 1st sem (enrolled)": "Numeric value",
+    "Curricular units 1st sem (evaluations)": "Numeric value",
+    "Curricular units 1st sem (approved)": "Numeric value",
+    "Curricular units 1st sem (grade)": "Numeric grade",
+    "Curricular units 1st sem (without evaluations)": "Numeric value",
+    "Curricular units 2nd sem (credited)": "Numeric value",
+    "Curricular units 2nd sem (enrolled)": "Numeric value",
+    "Curricular units 2nd sem (evaluations)": "Numeric value",
+    "Curricular units 2nd sem (approved)": "Numeric value",
+    "Curricular units 2nd sem (grade)": "Numeric grade",
+    "Curricular units 2nd sem (without evaluations)": "Numeric value",
+    "Unemployment rate": "Percentage, e.g., 5.3",
+    "Inflation rate": "Percentage, e.g., 2.1",
+    "GDP": "Numeric value"
+}
 
-    ### 🎯 Who should use this?
-    - Universities & colleges
-    - Academic advisors
-    - Educational policymakers
-    - Student support services
-    """)
+# ------------------------------
+# Manual single student prediction
+# ------------------------------
+st.header("🧍 Manual Single Student Prediction")
+manual_input = {}
+for col, tooltip in tooltips.items():
+    manual_input[col] = st.number_input(f"{col}", help=tooltip, value=0.0)
 
-# ==============================
-# Batch Prediction Page
-# ==============================
-elif page == "📥 Batch Prediction":
-    st.header("📥 Batch Prediction (CSV Upload)")
+if st.button("Predict Dropout Risk"):
+    try:
+        input_df = pd.DataFrame([manual_input])
+        prediction = model.predict_proba(input_df)[:, 1][0]  # probability of dropout
+        st.success(f"Predicted Dropout Risk: {prediction*100:.2f}%")
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
 
-    st.markdown("""
-    Upload a CSV file **with the same structure as the training dataset**, 
-    but **without the `Target` column**.
-    """)
+# ------------------------------
+# CSV batch prediction
+# ------------------------------
+st.header("📥 Upload CSV for Batch Prediction")
+uploaded_file = st.file_uploader("Upload CSV (without Target column)", type="csv")
 
-    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+if uploaded_file:
+    try:
+        batch_df = pd.read_csv(uploaded_file)
+        st.write("Preview of uploaded data:")
+        st.dataframe(batch_df.head())
 
-    if uploaded_file:
-        try:
-            df = pd.read_csv(uploaded_file)
-            st.success("✅ File uploaded successfully.")
-            st.dataframe(df.head())
-
-            missing_cols = [col for col in FEATURES if col not in df.columns]
-            if missing_cols:
-                st.error(f"❌ Missing required columns: {missing_cols}")
-            else:
-                if st.button("🔮 Run Batch Prediction"):
-                    predictions = model.predict(df[FEATURES])
-                    probabilities = model.predict_proba(df[FEATURES])[:, 1]
-
-                    df["Dropout Prediction"] = predictions
-                    df["Dropout Risk Probability"] = probabilities
-
-                    st.success("✅ Predictions completed.")
-                    st.dataframe(df.head())
-
-                    csv = df.to_csv(index=False).encode("utf-8")
-                    st.download_button(
-                        "📥 Download Predictions as CSV",
-                        csv,
-                        "dropout_predictions.csv",
-                        "text/csv"
-                    )
-
-        except Exception as e:
-            st.error(f"❌ Error processing file: {e}")
-
-# ==============================
-# Single Student Prediction Page
-# ==============================
-elif page == "🧍 Single Student Prediction":
-    st.header("🧍 Single Student Prediction")
-
-    st.markdown("""
-    Enter the student's information below. All values must be **numeric** 
-    and follow the same encoding as the training dataset.
-    """)
-
-    col1, col2 = st.columns(2)
-    inputs = {}
-
-    for i, feature in enumerate(FEATURES):
-        if i % 2 == 0:
-            with col1:
-                inputs[feature] = st.number_input(feature, value=0.0, format="%.2f")
-        else:
-            with col2:
-                inputs[feature] = st.number_input(feature, value=0.0, format="%.2f")
-
-    if st.button("🔮 Predict Dropout Risk"):
-        try:
-            input_df = pd.DataFrame([inputs])
-            prediction = model.predict(input_df)[0]
-            probability = model.predict_proba(input_df)[0][1]
-
-            st.subheader("📊 Prediction Result")
-
-            if prediction == 1:
-                st.error(f"⚠️ Student is **likely to drop out** (Risk: {probability:.2%})")
-            else:
-                st.success(f"✅ Student is **likely to continue** (Risk: {probability:.2%})")
-
-        except Exception as e:
-            st.error(f"❌ Prediction failed: {e}")
-
-# ==============================
-# About Page
-# ==============================
-elif page == "ℹ️ About the System":
-    st.header("ℹ️ About This System")
-
-    st.markdown("""
-    ### 🧠 Model Used
-    This application uses a **machine learning classification model** trained on student 
-    academic, demographic, and socio-economic data to predict dropout risk.
-
-    ### ⚙️ How It Works
-    - The model analyzes patterns in student performance and background.
-    - It outputs:
-        - A **binary prediction** (Dropout / Continue)
-        - A **probability score** indicating risk level.
-
-    ### 🌍 Real-World Impact
-    This system helps:
-    - Identify at-risk students early.
-    - Enable targeted interventions.
-    - Improve student retention and graduation rates.
-    - Support data-driven educational decisions.
-
-    ### 📈 Ethical Use
-    Predictions should be used to **support students**, not punish them.
-    Always combine model outputs with human judgment and institutional context.
-    """)
-
-# ==============================
-# Footer
-# ==============================
-st.markdown("---")
-st.markdown("© 2026 Student Dropout Prediction System | Built with Streamlit & Machine Learning")
+        if st.button("Predict Dropout Risk for Batch"):
+            predictions = model.predict_proba(batch_df)[:, 1]
+            batch_df["Predicted Dropout Risk"] = predictions
+            st.success("✅ Batch predictions completed.")
+            st.dataframe(batch_df)
+            st.download_button(
+                "Download Predictions CSV",
+                batch_df.to_csv(index=False).encode('utf-8'),
+                file_name="batch_predictions.csv",
+                mime="text/csv"
+            )
+    except Exception as e:
+        st.error(f"Failed to process CSV: {e}")
