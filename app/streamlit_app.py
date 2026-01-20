@@ -2,112 +2,250 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-st.set_page_config(page_title="Student Dropout Prediction System", layout="wide")
-
+# --- Load model ---
 st.title("🎓 Student Dropout Prediction System")
+model_path = "models/dropout_model.pkl"
 
-# ------------------------------
-# Load model
-# ------------------------------
-model_path = "app/models/dropout_model.pkl"
 try:
     model = joblib.load(model_path)
     st.success("✅ Model loaded successfully.")
-except Exception as e:
-    st.error(f"❌ Failed to load model: {e}")
+except FileNotFoundError:
+    st.error(f"❌ Model file not found at {model_path}")
 
-# ------------------------------
-# Instructions
-# ------------------------------
-st.markdown("""
-This app predicts student dropout risk.
-
-**Manual Single Student Prediction:** Enter values for a student in each field.  
-Hover over each field label to see what the values mean.  
-
-**CSV Batch Prediction:** Upload a CSV file with the same columns (excluding the Target column).
+# --- Sidebar instructions ---
+st.sidebar.header("How to input data")
+st.sidebar.write("""
+- Select from dropdowns/tick boxes for categorical fields.
+- Use sliders or number inputs for numeric fields.
+- Hover over inputs to see tips about what the value means.
+- You can also upload a CSV file for batch predictions.
 """)
 
-# ------------------------------
-# Sample tooltips dictionary
-# ------------------------------
-tooltips = {
-    "Marital status": "0: Single, 1: Married, 2: Other",
-    "Application mode": "0: Online, 1: In-person, 2: Other",
-    "Application order": "Numeric order of application",
-    "Course": "Course code or name",
-    "Daytime/evening attendance": "0: Daytime, 1: Evening",
-    "Previous qualification": "0: None, 1: High School, 2: Bachelor, etc.",
-    "Previous qualification (grade)": "Numeric grade",
-    "Nationality": "0: Home, 1: International",
-    "Mother's qualification": "0: None, 1: Primary, 2: Secondary, 3: Higher",
-    "Father's qualification": "0: None, 1: Primary, 2: Secondary, 3: Higher",
-    "Mother's occupation": "Categorical code for occupation",
-    "Father's occupation": "Categorical code for occupation",
-    "Admission grade": "Numeric grade",
-    "Displaced": "0: No, 1: Yes",
-    "Educational special needs": "0: No, 1: Yes",
-    "Debtor": "0: No, 1: Yes",
-    "Tuition fees up to date": "0: No, 1: Yes",
-    "Gender": "0: Female, 1: Male",
-    "Scholarship holder": "0: No, 1: Yes",
-    "Age at enrollment": "Numeric age",
-    "International": "0: No, 1: Yes",
-    "Curricular units 1st sem (credited)": "Numeric value",
-    "Curricular units 1st sem (enrolled)": "Numeric value",
-    "Curricular units 1st sem (evaluations)": "Numeric value",
-    "Curricular units 1st sem (approved)": "Numeric value",
-    "Curricular units 1st sem (grade)": "Numeric grade",
-    "Curricular units 1st sem (without evaluations)": "Numeric value",
-    "Curricular units 2nd sem (credited)": "Numeric value",
-    "Curricular units 2nd sem (enrolled)": "Numeric value",
-    "Curricular units 2nd sem (evaluations)": "Numeric value",
-    "Curricular units 2nd sem (approved)": "Numeric value",
-    "Curricular units 2nd sem (grade)": "Numeric grade",
-    "Curricular units 2nd sem (without evaluations)": "Numeric value",
-    "Unemployment rate": "Percentage, e.g., 5.3",
-    "Inflation rate": "Percentage, e.g., 2.1",
-    "GDP": "Numeric value"
-}
-
-# ------------------------------
-# Manual single student prediction
-# ------------------------------
 st.header("🧍 Manual Single Student Prediction")
-manual_input = {}
-for col, tooltip in tooltips.items():
-    manual_input[col] = st.number_input(f"{col}", help=tooltip, value=0.0)
 
+# --- CATEGORICAL INPUTS ---
+marital_status = st.selectbox(
+    "Marital Status",
+    options=["Single", "Married", "Divorced", "Other"],
+    help="Select the marital status of the student."
+)
+
+application_mode = st.selectbox(
+    "Application Mode",
+    options=["Standard", "Extraordinary", "Other"],
+    help="Select how the student applied."
+)
+
+course = st.selectbox(
+    "Course",
+    options=["Engineering", "Business", "Arts", "Science", "Other"],
+    help="Select the course the student is enrolled in."
+)
+
+daytime_attendance = st.radio(
+    "Daytime/Evening Attendance",
+    options=["Daytime", "Evening"],
+    help="Select whether the student attends daytime or evening classes."
+)
+
+prev_qualification = st.selectbox(
+    "Previous Qualification",
+    options=["None", "Secondary School", "Bachelor's", "Master's", "PhD"],
+    help="Select the highest previous qualification of the student."
+)
+
+prev_qualification_grade = st.selectbox(
+    "Previous Qualification Grade",
+    options=["Poor", "Average", "Good", "Very Good", "Excellent"],
+    help="Select the grade achieved in the previous qualification."
+)
+
+nationality = st.selectbox(
+    "Nationality",
+    options=["Domestic", "International"],
+    help="Select whether the student is from the home country or abroad."
+)
+
+mother_qualification = st.selectbox(
+    "Mother's Qualification",
+    options=["None", "Secondary School", "Bachelor's", "Master's", "PhD"],
+    help="Select the highest qualification of the mother."
+)
+
+father_qualification = st.selectbox(
+    "Father's Qualification",
+    options=["None", "Secondary School", "Bachelor's", "Master's", "PhD"],
+    help="Select the highest qualification of the father."
+)
+
+mother_occupation = st.selectbox(
+    "Mother's Occupation",
+    options=["Unemployed", "Blue-collar", "White-collar", "Professional"],
+    help="Select the mother's occupation."
+)
+
+father_occupation = st.selectbox(
+    "Father's Occupation",
+    options=["Unemployed", "Blue-collar", "White-collar", "Professional"],
+    help="Select the father's occupation."
+)
+
+gender = st.radio(
+    "Gender",
+    options=["Male", "Female", "Other"],
+    help="Select the gender of the student."
+)
+
+displaced = st.radio(
+    "Displaced Student",
+    options=["Yes", "No"],
+    help="Is the student displaced from another location?"
+)
+
+debtor = st.radio(
+    "Debtor",
+    options=["Yes", "No"],
+    help="Does the student have outstanding tuition fees?"
+)
+
+scholarship_holder = st.radio(
+    "Scholarship Holder",
+    options=["Yes", "No"],
+    help="Does the student hold a scholarship?"
+)
+
+educational_special_needs = st.radio(
+    "Educational Special Needs",
+    options=["Yes", "No"],
+    help="Does the student have special educational needs?"
+)
+
+international = st.radio(
+    "International",
+    options=["Yes", "No"],
+    help="Is the student an international student?"
+)
+
+# --- NUMERIC INPUTS ---
+age_at_enrollment = st.number_input(
+    "Age at Enrollment", min_value=15, max_value=60, value=18,
+    help="Enter the age of the student at enrollment."
+)
+
+admission_grade = st.number_input(
+    "Admission Grade", min_value=0.0, max_value=20.0, value=10.0,
+    help="Enter the student's admission grade."
+)
+
+curr_units_1st_sem_credited = st.number_input(
+    "Curricular Units 1st Sem (Credited)", min_value=0, max_value=60, value=5,
+    help="Number of curricular units credited in 1st semester."
+)
+curr_units_1st_sem_enrolled = st.number_input(
+    "Curricular Units 1st Sem (Enrolled)", min_value=0, max_value=60, value=5,
+    help="Number of curricular units enrolled in 1st semester."
+)
+curr_units_1st_sem_evaluations = st.number_input(
+    "Curricular Units 1st Sem (Evaluations)", min_value=0, max_value=60, value=5,
+    help="Number of evaluations in 1st semester."
+)
+curr_units_1st_sem_approved = st.number_input(
+    "Curricular Units 1st Sem (Approved)", min_value=0, max_value=60, value=5,
+    help="Number of units approved in 1st semester."
+)
+curr_units_1st_sem_grade = st.number_input(
+    "Curricular Units 1st Sem (Grade)", min_value=0.0, max_value=20.0, value=10.0,
+    help="Average grade of 1st semester units."
+)
+curr_units_1st_sem_without_eval = st.number_input(
+    "Curricular Units 1st Sem (Without Evaluations)", min_value=0, max_value=60, value=0,
+    help="Number of units without evaluations in 1st semester."
+)
+
+curr_units_2nd_sem_credited = st.number_input(
+    "Curricular Units 2nd Sem (Credited)", min_value=0, max_value=60, value=5,
+    help="Number of curricular units credited in 2nd semester."
+)
+curr_units_2nd_sem_enrolled = st.number_input(
+    "Curricular Units 2nd Sem (Enrolled)", min_value=0, max_value=60, value=5,
+    help="Number of curricular units enrolled in 2nd semester."
+)
+curr_units_2nd_sem_evaluations = st.number_input(
+    "Curricular Units 2nd Sem (Evaluations)", min_value=0, max_value=60, value=5,
+    help="Number of evaluations in 2nd semester."
+)
+curr_units_2nd_sem_approved = st.number_input(
+    "Curricular Units 2nd Sem (Approved)", min_value=0, max_value=60, value=5,
+    help="Number of units approved in 2nd semester."
+)
+curr_units_2nd_sem_grade = st.number_input(
+    "Curricular Units 2nd Sem (Grade)", min_value=0.0, max_value=20.0, value=10.0,
+    help="Average grade of 2nd semester units."
+)
+curr_units_2nd_sem_without_eval = st.number_input(
+    "Curricular Units 2nd Sem (Without Evaluations)", min_value=0, max_value=60, value=0,
+    help="Number of units without evaluations in 2nd semester."
+)
+
+# Economic indicators
+unemployment_rate = st.number_input(
+    "Unemployment Rate (%)", min_value=0.0, max_value=100.0, value=5.0,
+    help="Current unemployment rate in the country."
+)
+inflation_rate = st.number_input(
+    "Inflation Rate (%)", min_value=0.0, max_value=50.0, value=2.0,
+    help="Current inflation rate in the country."
+)
+gdp = st.number_input(
+    "GDP (USD billions)", min_value=0.0, max_value=200000.0, value=30000.0, step=100.0,
+    help="GDP of the country in USD billions."
+)
+
+# --- Prediction Button ---
 if st.button("Predict Dropout Risk"):
-    try:
-        input_df = pd.DataFrame([manual_input])
-        prediction = model.predict_proba(input_df)[:, 1][0]  # probability of dropout
-        st.success(f"Predicted Dropout Risk: {prediction*100:.2f}%")
-    except Exception as e:
-        st.error(f"Prediction failed: {e}")
+    # Here you can construct a DataFrame for prediction
+    input_data = pd.DataFrame({
+        "Marital status": [marital_status],
+        "Application mode": [application_mode],
+        "Application order": [0],  # Example, can add proper input
+        "Course": [course],
+        "Daytime/evening attendance": [daytime_attendance],
+        "Previous qualification": [prev_qualification],
+        "Previous qualification (grade)": [prev_qualification_grade],
+        "Nationality": [nationality],
+        "Mother's qualification": [mother_qualification],
+        "Father's qualification": [father_qualification],
+        "Mother's occupation": [mother_occupation],
+        "Father's occupation": [father_occupation],
+        "Admission grade": [admission_grade],
+        "Displaced": [displaced],
+        "Educational special needs": [educational_special_needs],
+        "Debtor": [debtor],
+        "Tuition fees up to date": [0],  # Example
+        "Gender": [gender],
+        "Scholarship holder": [scholarship_holder],
+        "Age at enrollment": [age_at_enrollment],
+        "International": [international],
+        "Curricular units 1st sem (credited)": [curr_units_1st_sem_credited],
+        "Curricular units 1st sem (enrolled)": [curr_units_1st_sem_enrolled],
+        "Curricular units 1st sem (evaluations)": [curr_units_1st_sem_evaluations],
+        "Curricular units 1st sem (approved)": [curr_units_1st_sem_approved],
+        "Curricular units 1st sem (grade)": [curr_units_1st_sem_grade],
+        "Curricular units 1st sem (without evaluations)": [curr_units_1st_sem_without_eval],
+        "Curricular units 2nd sem (credited)": [curr_units_2nd_sem_credited],
+        "Curricular units 2nd sem (enrolled)": [curr_units_2nd_sem_enrolled],
+        "Curricular units 2nd sem (evaluations)": [curr_units_2nd_sem_evaluations],
+        "Curricular units 2nd sem (approved)": [curr_units_2nd_sem_approved],
+        "Curricular units 2nd sem (grade)": [curr_units_2nd_sem_grade],
+        "Curricular units 2nd sem (without evaluations)": [curr_units_2nd_sem_without_eval],
+        "Unemployment rate": [unemployment_rate],
+        "Inflation rate": [inflation_rate],
+        "GDP": [gdp],
+    })
+    st.write("✅ Input data prepared for prediction:")
+    st.dataframe(input_data)
 
-# ------------------------------
-# CSV batch prediction
-# ------------------------------
-st.header("📥 Upload CSV for Batch Prediction")
-uploaded_file = st.file_uploader("Upload CSV (without Target column)", type="csv")
-
-if uploaded_file:
-    try:
-        batch_df = pd.read_csv(uploaded_file)
-        st.write("Preview of uploaded data:")
-        st.dataframe(batch_df.head())
-
-        if st.button("Predict Dropout Risk for Batch"):
-            predictions = model.predict_proba(batch_df)[:, 1]
-            batch_df["Predicted Dropout Risk"] = predictions
-            st.success("✅ Batch predictions completed.")
-            st.dataframe(batch_df)
-            st.download_button(
-                "Download Predictions CSV",
-                batch_df.to_csv(index=False).encode('utf-8'),
-                file_name="batch_predictions.csv",
-                mime="text/csv"
-            )
-    except Exception as e:
-        st.error(f"Failed to process CSV: {e}")
+    # Prediction example (replace with actual model call)
+    # prediction = model.predict(input_data)
+    # st.success(f"Predicted Dropout Risk: {prediction[0]}")
+    st.info("Prediction logic goes here…")
