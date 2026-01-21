@@ -1,172 +1,278 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import os
 import joblib
+import os
 
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(
+    page_title="🎓 Student Dropout Prediction System",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# ----------------------------------------
-# Load Model
-# ----------------------------------------
+# =========================
+# LOAD MODEL SAFELY
+# =========================
 @st.cache_resource
 def load_model():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(__file__)
     model_path = os.path.join(base_dir, "..", "models", "dropout_model.pkl")
     return joblib.load(model_path)
 
-
 model = load_model()
 
-# ----------------------------------------
-# Sidebar Navigation
-# ----------------------------------------
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Manual Prediction", "Batch Prediction", "Admin Dashboard", "About"])
+# =========================
+# SIDEBAR NAVIGATION
+# =========================
+st.sidebar.title("📌 Navigation")
+page = st.sidebar.radio(
+    "Go to:",
+    ["🏠 Home", "📊 Manual Prediction", "📁 Batch CSV Upload", "🧑‍💼 Admin Dashboard", "ℹ️ About"]
+)
 
-# ----------------------------------------
-# Homepage
-# ----------------------------------------
-if page == "Home":
+# =========================
+# SIDEBAR EDUCATION PANEL
+# =========================
+st.sidebar.markdown("---")
+st.sidebar.subheader("📘 How This System Works")
+st.sidebar.write("""
+This system predicts whether a student is likely to **drop out** based on:
+
+- Academic performance
+- Financial status
+- Demographics
+- Institutional engagement
+- Economic environment
+
+Early identification helps schools:
+✔ Provide academic support  
+✔ Offer financial aid  
+✔ Reduce dropout rates  
+✔ Improve student success
+""")
+
+# =========================
+# HOME PAGE
+# =========================
+if page == "🏠 Home":
     st.title("🎓 Student Dropout Prediction System")
-    st.markdown(
-        """
-        Welcome to the Student Dropout Prediction System.  
-
-        Use the sidebar to navigate:
-        - **Manual Prediction**: Enter a single student's data.  
-        - **Batch Prediction**: Upload a CSV file for multiple students.  
-        - **Admin Dashboard**: See statistics and trends.  
-        - **About**: Learn how this app works.
-        """
-    )
-
-# ----------------------------------------
-# About Page
-# ----------------------------------------
-elif page == "About":
-    st.title("ℹ️ About")
     st.markdown("""
-    This system predicts the risk of a student dropping out using historical academic and demographic data.  
+Welcome to the **Student Dropout Prediction System**.
 
-    **Why features matter:**
-    - **Socioeconomic**: Marital status, parental education/occupation, nationality.  
-    - **Financial**: Tuition fees, scholarship, debtor.  
-    - **Academic**: Grades, enrolled/approved units.  
-    - **Macro-economic**: Inflation rate, unemployment rate, GDP.
-    """)
+This intelligent system uses machine learning to analyze student data and predict the risk of dropout, enabling institutions to take early, targeted action.
 
-# ----------------------------------------
-# Manual Single Student Prediction
-# ----------------------------------------
-elif page == "Manual Prediction":
-    st.title("🧍 Manual Single Student Prediction")
+### 🚀 Features
+- ✅ Manual single-student prediction
+- ✅ Batch prediction using CSV upload
+- ✅ Admin dashboard insights
+- ✅ Explainable, professional interface
 
-    st.sidebar.header("Feature Explanation")
-    st.sidebar.markdown(
-        "Categorical features are dropdowns or tick boxes; numeric features use sliders or number inputs. Hover over info icons for details.")
+Use the navigation sidebar to get started.
+""")
 
+# =========================
+# MANUAL PREDICTION PAGE
+# =========================
+elif page == "📊 Manual Prediction":
+    st.title("📊 Manual Single Student Prediction")
+    st.write("Fill in the student's details below to predict dropout risk.")
 
-    def manual_input():
-        data = {}
-        # Categorical
-        data['Marital status'] = st.selectbox("Marital Status", ["Single", "Married", "Other"],
-                                              help="Marital status may affect social responsibilities")
-        data['Daytime/evening attendance'] = st.selectbox("Attendance Type", ["Daytime", "Evening"],
-                                                          help="Time of day student attends classes")
-        data['Previous qualification (grade)'] = st.selectbox("Previous Qualification Grade", ["A", "B", "C", "D"],
-                                                              help="Student's prior academic qualification")
-        data['Mother\'s qualification'] = st.selectbox("Mother's Qualification",
-                                                       ["None", "High School", "Bachelor", "Master", "PhD"],
-                                                       help="Mother's education level")
-        data['Father\'s qualification'] = st.selectbox("Father's Qualification",
-                                                       ["None", "High School", "Bachelor", "Master", "PhD"],
-                                                       help="Father's education level")
-        data['Mother\'s occupation'] = st.selectbox("Mother's Occupation", ["Unemployed", "Employed", "Self-employed"],
-                                                    help="Mother's occupation may affect support")
-        data['Father\'s occupation'] = st.selectbox("Father's Occupation", ["Unemployed", "Employed", "Self-employed"],
-                                                    help="Father's occupation may affect support")
-        data['Educational special needs'] = st.selectbox("Special Needs", ["Yes", "No"],
-                                                         help="Students with special needs may require accommodations")
-        data['Tuition fees up to date'] = st.selectbox("Tuition Fees Paid", ["Yes", "No"], help="Financial situation")
-        data['Scholarship holder'] = st.selectbox("Scholarship Holder", ["Yes", "No"],
-                                                  help="Financial support can reduce dropout risk")
-        data['International'] = st.selectbox("International Student", ["Yes", "No"],
-                                             help="International students face different challenges")
-        data['Displaced'] = st.selectbox("Displaced", ["Yes", "No"],
-                                         help="Displaced students may have higher dropout risk")
-        data['Debtor'] = st.selectbox("Debtor", ["Yes", "No"], help="Students in debt may drop out")
-        data['Gender'] = st.selectbox("Gender", ["Male", "Female"], help="Gender can correlate with dropout trends")
-        data['Nationality'] = st.selectbox("Nationality", ["Local", "Foreign"],
-                                           help="Nationality may affect support networks")
-        data['Application mode'] = st.selectbox("Application Mode", ["Regular", "Special"], help="Mode of admission")
-        data['Course'] = st.text_input("Course", help="Course enrolled")
+    with st.form("prediction_form"):
+        col1, col2, col3 = st.columns(3)
 
-        # Numeric
-        data['Application order'] = st.number_input("Application Order", min_value=1, max_value=100, value=1)
-        data['Admission grade'] = st.number_input("Admission Grade", min_value=0.0, max_value=20.0, value=10.0)
-        data['Age at enrollment'] = st.number_input("Age at Enrollment", min_value=15, max_value=40, value=18)
-        data['Curricular units 1st sem (enrolled)'] = st.number_input("1st Sem Units Enrolled", min_value=0,
-                                                                      max_value=20, value=0)
-        data['Curricular units 1st sem (approved)'] = st.number_input("1st Sem Units Approved", min_value=0,
-                                                                      max_value=20, value=0)
-        data['Curricular units 2nd sem (enrolled)'] = st.number_input("2nd Sem Units Enrolled", min_value=0,
-                                                                      max_value=20, value=0)
-        data['Curricular units 2nd sem (approved)'] = st.number_input("2nd Sem Units Approved", min_value=0,
-                                                                      max_value=20, value=0)
-        data['Curricular units 1st sem (grade)'] = st.number_input("1st Sem Average Grade", min_value=0.0,
-                                                                   max_value=20.0, value=0.0)
-        data['Curricular units 2nd sem (grade)'] = st.number_input("2nd Sem Average Grade", min_value=0.0,
-                                                                   max_value=20.0, value=0.0)
-        data['Inflation rate'] = st.number_input("Inflation Rate (%)", min_value=0.0, max_value=100.0, value=5.0)
-        data['Unemployment rate'] = st.number_input("Unemployment Rate (%)", min_value=0.0, max_value=100.0, value=5.0)
-        data['GDP'] = st.number_input("GDP", min_value=0.0, value=5000.0)
+        with col1:
+            marital_status = st.selectbox("Marital status", [0, 1, 2, 3], help="0=Single, 1=Married, 2=Divorced, 3=Widowed")
+            application_mode = st.selectbox("Application mode", [1, 2, 3, 4, 5], help="Mode of application to institution")
+            application_order = st.number_input("Application order", min_value=0, max_value=10, step=1)
+            course = st.selectbox("Course", list(range(1, 20)), help="Program/course code")
+            daytime_evening_attendance = st.selectbox("Daytime/Evening attendance", [0, 1], help="0=Evening, 1=Daytime")
 
-        return pd.DataFrame([data])
+        with col2:
+            previous_qualification = st.selectbox("Previous qualification", list(range(0, 20)))
+            previous_qualification_grade = st.number_input("Previous qualification (grade)", min_value=0.0, max_value=200.0, step=0.1)
+            admission_grade = st.number_input("Admission grade", min_value=0.0, max_value=200.0, step=0.1)
+            nationality = st.selectbox("Nationality", list(range(1, 50)))
+            displaced = st.checkbox("Displaced", help="Tick if student is displaced")
 
+        with col3:
+            educational_special_needs = st.checkbox("Educational special needs")
+            debtor = st.checkbox("Debtor", help="Tick if student has unpaid debts")
+            tuition_fees_up_to_date = st.checkbox("Tuition fees up to date")
+            scholarship_holder = st.checkbox("Scholarship holder")
+            gender = st.selectbox("Gender", [0, 1], help="0=Female, 1=Male")
+            age_at_enrollment = st.number_input("Age at enrollment", min_value=15, max_value=100, step=1)
+            international = st.checkbox("International student")
 
-    input_df = manual_input()
+        st.markdown("### 📚 Academic Performance")
 
-    if st.button("Predict Dropout Risk"):
-        prediction = model.predict_proba(input_df)[:, 1][0]
-        st.success(f"Predicted dropout risk: {prediction * 100:.2f}%")
-        if prediction > 0.5:
-            st.warning("⚠️ High risk of dropout")
-        else:
-            st.info("✅ Low risk of dropout")
+        col4, col5, col6 = st.columns(3)
 
-# ----------------------------------------
-# Batch Prediction (CSV Upload)
-# ----------------------------------------
-elif page == "Batch Prediction":
-    st.title("📥 Batch Prediction (CSV Upload)")
-    st.markdown("Upload a CSV file with the same columns as Manual Prediction (excluding target).")
+        with col4:
+            cu1_enrolled = st.number_input("Curricular units 1st sem (enrolled)", min_value=0, max_value=50, step=1)
+            cu1_evaluations = st.number_input("Curricular units 1st sem (evaluations)", min_value=0, max_value=50, step=1)
+            cu1_approved = st.number_input("Curricular units 1st sem (approved)", min_value=0, max_value=50, step=1)
+            cu1_credited = st.number_input("Curricular units 1st sem (credited)", min_value=0, max_value=50, step=1)
+            cu1_without_eval = st.number_input("Curricular units 1st sem (without evaluations)", min_value=0, max_value=50, step=1)
+            cu1_grade = st.number_input("Curricular units 1st sem (grade)", min_value=0.0, max_value=200.0, step=0.1)
 
-    uploaded_file = st.file_uploader("Upload CSV", type="csv")
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            predictions = model.predict_proba(df)[:, 1]
-            df["Dropout Risk (%)"] = predictions * 100
-            st.dataframe(df)
-            st.success("✅ Batch prediction completed")
+        with col5:
+            cu2_enrolled = st.number_input("Curricular units 2nd sem (enrolled)", min_value=0, max_value=50, step=1)
+            cu2_evaluations = st.number_input("Curricular units 2nd sem (evaluations)", min_value=0, max_value=50, step=1)
+            cu2_approved = st.number_input("Curricular units 2nd sem (approved)", min_value=0, max_value=50, step=1)
+            cu2_credited = st.number_input("Curricular units 2nd sem (credited)", min_value=0, max_value=50, step=1)
+            cu2_without_eval = st.number_input("Curricular units 2nd sem (without evaluations)", min_value=0, max_value=50, step=1)
+            cu2_grade = st.number_input("Curricular units 2nd sem (grade)", min_value=0.0, max_value=200.0, step=0.1)
 
-            # CSV download
-            csv = df.to_csv(index=False).encode()
-            st.download_button("Download Predictions CSV", csv, "predictions.csv", "text/csv")
-        except Exception as e:
-            st.error(f"Error processing CSV: {e}")
+        with col6:
+            mother_qualification = st.selectbox("Mother's qualification", list(range(0, 10)))
+            mother_occupation = st.selectbox("Mother's occupation", list(range(0, 20)))
+            father_qualification = st.selectbox("Father's qualification", list(range(0, 10)))
+            father_occupation = st.selectbox("Father's occupation", list(range(0, 20)))
+            inflation_rate = st.number_input("Inflation rate", min_value=-10.0, max_value=50.0, step=0.1)
+            unemployment_rate = st.number_input("Unemployment rate", min_value=0.0, max_value=50.0, step=0.1)
+            gdp = st.number_input("GDP", min_value=0.0, max_value=100000.0, step=10.0)
 
-# ----------------------------------------
-# Admin Dashboard
-# ----------------------------------------
-elif page == "Admin Dashboard":
-    st.title("📊 Admin Dashboard")
-    st.markdown("Summary statistics and model insights.")
+        submitted = st.form_submit_button("🔍 Predict Dropout Risk")
 
-    st.subheader("Predicted Dropout Risk Distribution (Sample)")
-    sample_preds = np.random.rand(100) * 100
-    st.bar_chart(sample_preds)
+        if submitted:
+            input_data = [
+                marital_status,
+                application_mode,
+                application_order,
+                course,
+                daytime_evening_attendance,
+                previous_qualification,
+                previous_qualification_grade,
+                nationality,
+                displaced,
+                educational_special_needs,
+                debtor,
+                tuition_fees_up_to_date,
+                scholarship_holder,
+                gender,
+                age_at_enrollment,
+                international,
+                admission_grade,
+                mother_qualification,
+                mother_occupation,
+                father_qualification,
+                father_occupation,
+                inflation_rate,
+                unemployment_rate,
+                gdp,
+                cu1_enrolled,
+                cu1_evaluations,
+                cu1_approved,
+                cu1_credited,
+                cu1_without_eval,
+                cu1_grade,
+                cu2_enrolled,
+                cu2_evaluations,
+                cu2_approved,
+                cu2_credited,
+                cu2_without_eval,
+                cu2_grade
+            ]
 
-    st.subheader("Feature Insights")
-    st.write("Placeholder: show feature importance, trends, or student demographics here.")
+            input_array = np.array(input_data).reshape(1, -1)
+            prediction = model.predict_proba(input_array)[0][1]
 
+            st.markdown("---")
+            st.subheader("📈 Prediction Result")
+            st.metric("Dropout Risk Probability", f"{prediction * 100:.2f}%")
+
+            if prediction >= 0.5:
+                st.error("⚠️ High risk of dropout. Immediate intervention recommended.")
+            else:
+                st.success("✅ Low risk of dropout. Student is likely to continue.")
+
+# =========================
+# BATCH CSV UPLOAD PAGE
+# =========================
+elif page == "📁 Batch CSV Upload":
+    st.title("📁 Batch Prediction via CSV Upload")
+    st.write("Upload a CSV file with the same structure as the training data (without target column).")
+
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+        st.subheader("📄 Uploaded Data Preview")
+        st.dataframe(df.head())
+
+        if st.button("🚀 Run Batch Prediction"):
+            X = df.to_numpy()
+            probabilities = model.predict_proba(X)[:, 1]
+            df["Dropout_Risk_Probability"] = probabilities
+
+            st.subheader("📊 Prediction Results")
+            st.dataframe(df.head())
+
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button("⬇ Download Results CSV", csv, "dropout_predictions.csv", "text/csv")
+
+# =========================
+# ADMIN DASHBOARD PAGE
+# =========================
+elif page == "🧑‍💼 Admin Dashboard":
+    st.title("🧑‍💼 Admin Dashboard")
+    st.write("This dashboard provides insights into student dropout risk patterns.")
+
+    st.info("Upload a CSV file to generate analytics.")
+
+    uploaded_file = st.file_uploader("Upload dataset for dashboard analysis", type=["csv"], key="admin")
+
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+        st.subheader("📊 Dataset Overview")
+        st.write(df.describe())
+
+        if "Dropout_Risk_Probability" in df.columns:
+            st.subheader("📈 Risk Distribution")
+            st.bar_chart(df["Dropout_Risk_Probability"])
+
+        st.subheader("🧠 Key Insights")
+        st.write("""
+        - High dropout risk often correlates with:
+          - Low academic performance
+          - Financial difficulties
+          - Lack of parental education
+          - Poor engagement (few approved courses)
+        - Early identification allows:
+          - Academic counseling
+          - Financial aid allocation
+          - Psychological and social support
+        """)
+
+# =========================
+# ABOUT PAGE
+# =========================
+elif page == "ℹ️ About":
+    st.title("ℹ️ About This System")
+    st.markdown("""
+### 🎓 Student Dropout Prediction System
+
+This application uses machine learning to predict student dropout risk using historical academic, demographic, financial, and institutional data.
+
+#### 🔍 Why This Matters
+Student dropout is a major challenge worldwide, leading to:
+- Lost educational opportunities
+- Financial loss for institutions
+- Reduced workforce development
+
+#### 🧠 How It Works
+A trained machine learning model analyzes:
+- Academic performance trends
+- Socioeconomic background
+- Institutional engagement
+- Economic conditions
+
+The output is a **probability score** indicating dropout risk, enabling proactive intervention.
+
+#### 👨‍💻 Developed by
+Sulaiman Dalhatu Halliru  
+AI Student Project — 2026
+""")
